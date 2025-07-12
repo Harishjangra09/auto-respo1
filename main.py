@@ -127,23 +127,31 @@ def send_daily_update(chat_id):
 async def start(update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
-    username = user.username or f"NoUsername ({user.first_name})"
+    full_name = f"{user.first_name} {user.last_name or ''}".strip()
+    username = f"@{user.username}" if user.username else user.first_name
 
-    # Send welcome to the user
+    # 1. Welcome user
     await update.message.reply_text("✅ You are now subscribed to daily finance updates!")
 
-    # Send user info to your (admin) chat via notify bot
+    # 2. Send financial update
+    try:
+        await update.message.reply_text("📡 Sending today's financial update...")
+        send_daily_update(chat_id=user_id)
+    except Exception as e:
+        print("Failed to send news on /start:", e)
+
+    # 3. Notify admin via second bot
     try:
         notify_msg = (
-            f"📢 New user started bot:\n"
-            f"👤 Name: {user.first_name} {user.last_name or ''}\n"
-            f"🔹 Username: @{username}\n"
+            f"📢 New user started the bot:\n"
+            f"👤 Name: {full_name}\n"
+            f"🔹 Username: {username}\n"
             f"🆔 User ID: `{user_id}`"
         )
-        # Send it using second bot to your own chat
         notify_bot.send_message(chat_id=NOTIFY_CHAT_ID, text=notify_msg, parse_mode="Markdown")
     except Exception as e:
         print("Error notifying admin:", e)
+
 
 
 # === /update COMMAND ===
