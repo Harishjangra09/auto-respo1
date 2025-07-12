@@ -6,13 +6,13 @@ from telegram import Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # === MAIN BOT CONFIG ===
-TELEGRAM_TOKEN = '7741029568:AAGhAm5FEYTcVzZuPPMrOa5P9W2_-bFQq50'  # main bot
-FMP_API_KEY = 'yiI7Qxz3WZMDirK1LnxbiEbMClOphxh6'
-NEWSAPI_KEY = 'fbe66da57eef4b0993a13c3572457d06'
+TELEGRAM_TOKEN = os.getenv("7741029568:AAGhAm5FEYTcVzZuPPMrOa5P9W2_-bFQq50")  # main bot
+FMP_API_KEY = os.getenv("yiI7Qxz3WZMDirK1LnxbiEbMClOphxh6")
+NEWSAPI_KEY = os.getenv("fbe66da57eef4b0993a13c3572457d06")
 
 # === NOTIFY BOT CONFIG ===
-SECOND_BOT_TOKEN = '7635757636:AAFwFOjtKWF3XFZ0VYOEs8ICMnbVhLHWf_8'  # the other bot that gets notified
-NOTIFY_CHAT_ID = '897358644'  # receiver chat (group/user where second bot is added)
+SECOND_BOT_TOKEN = os.getenv("7635757636:AAFwFOjtKWF3XFZ0VYOEs8ICMnbVhLHWf_8")  # the other bot that gets notified
+NOTIFY_CHAT_ID = os.getenv("897358644")  # receiver chat (group/user where second bot is added)
 
 # === Initialize bots ===
 main_bot = Bot(token=TELEGRAM_TOKEN)
