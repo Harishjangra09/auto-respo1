@@ -40,8 +40,9 @@ nifty_50_query = (
 
 # === GET US STOCK NEWS ===
 def get_financial_news():
-    messages = ["📰 *Top US Company News (Top 50):*"]
-    for symbol in us_top_50[:10]:  # limit to avoid FMP API abuse
+    messages = ["📰 *Top US Company News (Filtered):*"]
+    new_found = False
+    for symbol in us_top_50[:10]:
         url = f"https://financialmodelingprep.com/api/v3/stock_news?tickers={symbol}&limit=1&apikey={FMP_API_KEY}"
         response = requests.get(url)
         data = response.json()
@@ -50,12 +51,20 @@ def get_financial_news():
             continue
 
         article = data[0]
+        news_url = article.get('url')
+
+        # Skip if already sent
+        if news_url in sent_news_urls:
+            continue
+
         title = article.get('title')
         site = article.get('site')
-        news_url = article.get('url')
         messages.append(f"🔹 [{symbol}] [{title}]({news_url}) - _{site}_")
+        sent_news_urls.add(news_url)
+        new_found = True
 
-    return "\n".join(messages) if len(messages) > 1 else "❌ No US stock news found."
+    return "\n".join(messages) if new_found else None
+
 
 # === GET INDIA NEWS ===
 def get_indian_company_news():
@@ -64,15 +73,24 @@ def get_indian_company_news():
     data = response.json().get("articles", [])
 
     if not data:
-        return "❌ No Indian company news."
+        return None
 
-    message = "🇮🇳 *Indian Company News (Nifty 50):*\n"
+    message = "🇮🇳 *New Indian Company News (Filtered):*\n"
+    new_found = False
+
     for article in data:
+        url = article.get("url")
+        if url in sent_news_urls:
+            continue
+
         title = article.get("title")
         source = article.get("source", {}).get("name")
-        url = article.get("url")
         message += f"🔸 [{title}]({url}) - _{source}_\n"
-    return message
+        sent_news_urls.add(url)
+        new_found = True
+
+    return message if new_found else None
+
 
 # === GET EARNINGS ===
 def get_earnings():
@@ -118,10 +136,19 @@ def send_daily_update(chat_id):
         earnings = get_earnings()
         events = get_economic_events()
 
-        final_message = f"{us_news}\n\n{india_news}\n\n{earnings}\n\n{events}"
-        main_bot.send_message(chat_id=chat_id, text=final_message, parse_mode="Markdown", disable_web_page_preview=True)
+        final_parts = []
+        for part in [us_news, india_news, earnings, events]:
+            if part:  # Only include if there’s content
+                final_parts.append(part)
+
+        if final_parts:
+            final_message = "\n\n".join(final_parts)
+            main_bot.send_message(chat_id=chat_id, text=final_message, parse_mode="Markdown", disable_web_page_preview=True)
+        else:
+            print("No new news to send.")
     except Exception as e:
         print("Update error:", e)
+
 
 # === /start COMMAND ===
 async def start(update, context: ContextTypes.DEFAULT_TYPE):
@@ -172,9 +199,18 @@ async def manual_update(update, context: ContextTypes.DEFAULT_TYPE):
 # === SCHEDULED AUTOMATED PUSH (FOR YOURSELF OR FIXED USERS) ===
 def run_schedule():
     def job():
-        # you can loop through a list of user IDs here
-        send_daily_update(chat_id='YOUR_CHAT_ID')  # e.g., your fixed user ID
-    schedule.every().day.at("08:30").do(job)
+        # put the chat‑ids you want to push to (can be one or many)
+        for chat_id in ['897358644']:          # <‑‑ add more IDs if needed
+            send_daily_update(chat_id=chat_id)
+
+    # --- choose ONE of these two lines ---
+
+    # (A) EVERY HOUR on the hour
+    schedule.every(10).minutes.do(job)
+
+    # (B) EVERY 30 minutes (example)
+    # schedule.every(30).minutes.do(job)
+
     while True:
         schedule.run_pending()
         time.sleep(60)
