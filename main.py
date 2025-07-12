@@ -82,22 +82,48 @@ def get_indian_company_news():
 # === COMBINE AND SEND ===
 def send_daily_update(chat_id):
     try:
-        us_news = get_financial_news()
-        india_news = get_indian_company_news()
-
+        news = get_all_financial_news()
         print("✅ Sending update...")
-        print("US News:", us_news)
-        print("India News:", india_news)
+        print("News:", news)
 
-        parts = [us_news, india_news]
-        content = "\n\n".join([p for p in parts if p])
-
-        if content:
-            main_bot.send_message(chat_id=chat_id, text=content, parse_mode="Markdown", disable_web_page_preview=True)
+        if news:
+            main_bot.send_message(chat_id=chat_id, text=news, parse_mode="Markdown", disable_web_page_preview=True)
         else:
             print("No new news to send.")
     except Exception as e:
         print("Update error:", e)
+
+
+# get all finance news
+def get_all_financial_news():
+    query = (
+        "finance OR stock market OR inflation OR interest rates OR "
+        "bonds OR central bank OR RBI OR Fed OR crypto OR bitcoin OR ethereum OR "
+        "tariffs OR monetary policy OR fiscal policy OR economy OR GDP OR recession"
+    )
+    url = f"https://newsapi.org/v2/everything?q={query}&language=en&pageSize=10&sortBy=publishedAt&apiKey={NEWSAPI_KEY}"
+    response = requests.get(url)
+    data = response.json().get("articles", [])
+
+    if not data:
+        return None
+
+    message = "📰 *Latest Financial News (Live):*\n"
+    new_found = False
+
+    for article in data:
+        url = article.get("url")
+        if url in sent_news_urls:
+            continue
+        title = article.get("title")
+        source = article.get("source", {}).get("name")
+        message += f"🔹 [{title}]({url}) - _{source}_\n"
+        sent_news_urls.add(url)
+        new_found = True
+
+    return message if new_found else None
+
+
 
 # === /start COMMAND ===
 async def start(update, context: ContextTypes.DEFAULT_TYPE):
@@ -138,13 +164,16 @@ async def manual_update(update, context: ContextTypes.DEFAULT_TYPE):
 # === SCHEDULED PUSH ===
 def run_schedule():
     def job():
-        for chat_id in ['897358644']:  # ✅ Replace with your chat/group ID(s)
+        # Replace with your target Telegram Chat ID(s)
+        for chat_id in ['897358644']:
             send_daily_update(chat_id=chat_id)
 
-    schedule.every(10).minutes.do(job)
+    schedule.every(5).minutes.do(job)  # ✅ Run every 5 minutes
+
     while True:
         schedule.run_pending()
         time.sleep(60)
+
 
 # === MAIN ENTRY ===
 def main():
