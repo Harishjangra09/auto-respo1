@@ -5,46 +5,69 @@ import threading
 from telegram import Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-
-
-
-
-# === CONFIG ===
-TELEGRAM_TOKEN = '7741029568:AAGhAm5FEYTcVzZuPPMrOa5P9W2_-bFQq50'
+# === MAIN BOT CONFIG ===
+TELEGRAM_TOKEN = '7741029568:AAGhAm5FEYTcVzZuPPMrOa5P9W2_-bFQq50'  # main bot
 CHAT_ID = '897358644'
 FMP_API_KEY = 'yiI7Qxz3WZMDirK1LnxbiEbMClOphxh6'
 NEWSAPI_KEY = 'fbe66da57eef4b0993a13c3572457d06'
 
-bot = Bot(token=TELEGRAM_TOKEN)
+# === NOTIFY BOT CONFIG ===
+SECOND_BOT_TOKEN = '7635757636:AAFwFOjtKWF3XFZ0VYOEs8ICMnbVhLHWf_8'  # the other bot that gets notified
+NOTIFY_CHAT_ID = '897358644'  # receiver chat (group/user where second bot is added)
 
-# === US FINANCIAL NEWS ===
+# === Initialize bots ===
+main_bot = Bot(token=TELEGRAM_TOKEN)
+notify_bot = Bot(token=SECOND_BOT_TOKEN)
+
+# === US TOP 50 STOCKS ===
+us_top_50 = [
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK.B", "UNH", "JNJ",
+    "XOM", "V", "PG", "MA", "AVGO", "LLY", "HD", "MRK", "PEP", "KO",
+    "ABBV", "COST", "ADBE", "WMT", "CRM", "CVX", "ACN", "TMO", "INTC", "MCD",
+    "LIN", "DHR", "WFC", "ABT", "TXN", "PM", "AMGN", "MS", "HON", "QCOM",
+    "UNP", "NEE", "ORCL", "LOW", "BMY", "UPS", "RTX", "IBM", "SBUX", "NFLX"
+]
+
+# === NIFTY 50 COMPANIES ===
+nifty_50_query = (
+    "Reliance OR TCS OR Infosys OR HDFC OR ICICI OR Kotak OR Axis OR SBI OR Wipro OR ITC OR "
+    "Adani OR HCL OR Bharti OR Ultratech OR L&T OR Nestle OR Asian Paints OR Power Grid OR "
+    "NTPC OR Coal India OR Bajaj Finance OR Bajaj Finserv OR HDFC Bank OR Cipla OR Sun Pharma OR "
+    "ONGC OR Tata Motors OR Hero MotoCorp OR Tata Consumer OR Apollo Hospitals OR Divis Labs OR "
+    "Hindalco OR Tata Steel OR JSW Steel OR Britannia OR Dr Reddy OR BPCL OR Grasim OR Tech Mahindra OR "
+    "Eicher OR Maruti OR IndusInd OR Hindustan Unilever OR UPL OR SBI Life OR Bajaj Auto OR M&M OR "
+    "Shriram Finance OR LTIMindtree"
+)
+
+# === GET US STOCK NEWS ===
 def get_financial_news():
-    url = f"https://financialmodelingprep.com/api/v3/stock_news?limit=5&apikey={FMP_API_KEY}"
-    response = requests.get(url)
-    data = response.json()
+    messages = ["📰 *Top US Company News (Top 50):*"]
+    for symbol in us_top_50[:10]:  # limit to avoid FMP API abuse
+        url = f"https://financialmodelingprep.com/api/v3/stock_news?tickers={symbol}&limit=1&apikey={FMP_API_KEY}"
+        response = requests.get(url)
+        data = response.json()
 
-    if not data:
-        return "❌ No US financial news."
+        if not data:
+            continue
 
-    message = "📰 *Top US Market News:*\n"
-    for article in data:
+        article = data[0]
         title = article.get('title')
         site = article.get('site')
-        url = article.get('url')
-        message += f"🔹 [{title}]({url}) - _{site}_\n"
-    return message
+        news_url = article.get('url')
+        messages.append(f"🔹 [{symbol}] [{title}]({news_url}) - _{site}_")
 
-# === INDIAN COMPANY NEWS ===
+    return "\n".join(messages) if len(messages) > 1 else "❌ No US stock news found."
+
+# === GET INDIA NEWS ===
 def get_indian_company_news():
-    query = "Reliance OR TCS OR Infosys OR HDFC OR SBI OR Adani OR Wipro OR LIC OR Paytm OR Zomato"
-    url = f"https://newsapi.org/v2/everything?q={query}&language=en&pageSize=5&sortBy=publishedAt&apiKey={NEWSAPI_KEY}"
+    url = f"https://newsapi.org/v2/everything?q={nifty_50_query}&language=en&pageSize=5&sortBy=publishedAt&apiKey={NEWSAPI_KEY}"
     response = requests.get(url)
     data = response.json().get("articles", [])
 
     if not data:
         return "❌ No Indian company news."
 
-    message = "🇮🇳 *Indian Company News:*\n"
+    message = "🇮🇳 *Indian Company News (Nifty 50):*\n"
     for article in data:
         title = article.get("title")
         source = article.get("source", {}).get("name")
@@ -52,7 +75,7 @@ def get_indian_company_news():
         message += f"🔸 [{title}]({url}) - _{source}_\n"
     return message
 
-# === EARNINGS REPORT ===
+# === GET EARNINGS ===
 def get_earnings():
     url = f"https://financialmodelingprep.com/api/v3/earning_calendar?apikey={FMP_API_KEY}"
     response = requests.get(url)
@@ -70,7 +93,7 @@ def get_earnings():
         message += f"🔹 `{symbol}` | EPS: `{eps}` | Revenue: `{rev}` | Date: {date}\n"
     return message
 
-# === ECONOMIC EVENTS ===
+# === GET ECONOMIC EVENTS ===
 def get_economic_events():
     url = f"https://financialmodelingprep.com/api/v3/economic_calendar?apikey={FMP_API_KEY}"
     response = requests.get(url)
@@ -88,57 +111,65 @@ def get_economic_events():
         message += f"🔸 {country} | {event_name} | {time_event} ({date})\n"
     return message
 
-# === COMBINED DAILY UPDATE ===
-def send_daily_update():
-    us_news = get_financial_news()
-    india_news = get_indian_company_news()
-    earnings = get_earnings()
-    events = get_economic_events()
+# === SEND COMBINED UPDATE ===
+def send_daily_update(chat_id):
+    try:
+        us_news = get_financial_news()
+        india_news = get_indian_company_news()
+        earnings = get_earnings()
+        events = get_economic_events()
 
-    final_message = f"{us_news}\n\n{india_news}\n\n{earnings}\n\n{events}"
-    bot.send_message(chat_id=CHAT_ID, text=final_message, parse_mode="Markdown", disable_web_page_preview=True)
+        final_message = f"{us_news}\n\n{india_news}\n\n{earnings}\n\n{events}"
+        main_bot.send_message(chat_id=chat_id, text=final_message, parse_mode="Markdown", disable_web_page_preview=True)
+    except Exception as e:
+        print("Update error:", e)
 
-# === TELEGRAM BOT COMMANDS ===
+# === /start COMMAND ===
 async def start(update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 I will send you daily finance + economic updates for US and Indian markets.")
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "unknown"
+    await update.message.reply_text("✅ You are now subscribed to daily finance updates!")
 
+    # Notify second bot
+    try:
+        notify_msg = f"📢 New user started: `{username}` (ID: `{user_id}`)"
+        notify_bot.send_message(chat_id=NOTIFY_CHAT_ID, text=notify_msg, parse_mode="Markdown")
+    except Exception as e:
+        print("Notify failed:", e)
+
+# === /update COMMAND ===
 async def manual_update(update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📡 Fetching latest news...")
-    send_daily_update()
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "unknown"
+    await update.message.reply_text("📡 Sending latest updates...")
 
-# === DAILY SCHEDULER THREAD ===
+    send_daily_update(chat_id=user_id)
+
+    # Notify second bot
+    try:
+        notify_msg = f"📢 Update triggered by `{username}` (ID: `{user_id}`)"
+        notify_bot.send_message(chat_id=NOTIFY_CHAT_ID, text=notify_msg, parse_mode="Markdown")
+    except Exception as e:
+        print("Notify failed:", e)
+
+# === SCHEDULED AUTOMATED PUSH (FOR YOURSELF OR FIXED USERS) ===
 def run_schedule():
-    schedule.every().day.at("08:30").do(send_daily_update)
+    def job():
+        # you can loop through a list of user IDs here
+        send_daily_update(chat_id='YOUR_CHAT_ID')  # e.g., your fixed user ID
+    schedule.every().day.at("08:30").do(job)
     while True:
         schedule.run_pending()
         time.sleep(60)
 
-# === MAIN FUNCTION ===
+# === MAIN ===
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("update", manual_update))
 
-    # Background thread for daily scheduler
     threading.Thread(target=run_schedule, daemon=True).start()
-
     app.run_polling()
 
-# === RUN ===
 if __name__ == "__main__":
     main()
-
-# Store chat_ids of subscribers
-subscribers = set()
-
-async def start(update, context):
-    chat_id = str(update.effective_chat.id)
-    subscribers.add(chat_id)
-    
-    # Save to file (optional, for persistence)
-    with open("subscribers.txt", "a") as f:
-        f.write(chat_id + "\n")
-    
-    await update.message.reply_text("✅ You are now subscribed to daily finance updates!")
-
