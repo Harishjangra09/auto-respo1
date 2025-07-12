@@ -6,6 +6,9 @@ import threading
 from telegram import Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
+# === TRACK SENT ARTICLES ===
+sent_news_urls = set()  # ✅ ← MISSING LINE ADDED HERE
+
 # === MAIN BOT CONFIG ===
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") # main bot
 FMP_API_KEY = os.getenv("FMP_API_KEY")
@@ -137,9 +140,13 @@ def send_daily_update(chat_id):
         earnings = get_earnings()
         events = get_economic_events()
 
+        print("✅ Sending update...")
+        print("US News:", us_news)
+        print("India News:", india_news)
+
         final_parts = []
         for part in [us_news, india_news, earnings, events]:
-            if part:  # Only include if there’s content
+            if part:
                 final_parts.append(part)
 
         if final_parts:
@@ -149,6 +156,7 @@ def send_daily_update(chat_id):
             print("No new news to send.")
     except Exception as e:
         print("Update error:", e)
+
 
 
 # === /start COMMAND ===
