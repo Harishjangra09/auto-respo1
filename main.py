@@ -5,9 +5,10 @@ import time
 import threading
 from telegram import Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from collections import deque
 
-# === TRACK SENT ARTICLES ===
-sent_news_urls = set()
+sent_news_urls = deque(maxlen=500)  # Limit to 500 most recent URLs
+
 
 # === MAIN BOT CONFIG ===
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
