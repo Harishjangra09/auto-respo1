@@ -7,7 +7,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # === MAIN BOT CONFIG ===
 TELEGRAM_TOKEN = '7741029568:AAGhAm5FEYTcVzZuPPMrOa5P9W2_-bFQq50'  # main bot
-CHAT_ID = '897358644'
 FMP_API_KEY = 'yiI7Qxz3WZMDirK1LnxbiEbMClOphxh6'
 NEWSAPI_KEY = 'fbe66da57eef4b0993a13c3572457d06'
 
