@@ -128,3 +128,17 @@ def main():
 # === RUN ===
 if __name__ == "__main__":
     main()
+
+# Store chat_ids of subscribers
+subscribers = set()
+
+async def start(update, context):
+    chat_id = str(update.effective_chat.id)
+    subscribers.add(chat_id)
+    
+    # Save to file (optional, for persistence)
+    with open("subscribers.txt", "a") as f:
+        f.write(chat_id + "\n")
+    
+    await update.message.reply_text("✅ You are now subscribed to daily finance updates!")
+
